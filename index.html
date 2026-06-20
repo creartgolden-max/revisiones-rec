@@ -1,564 +1,1080 @@
 <!DOCTYPE html>
+
 <html lang="es">
+
 <head>
+
 <meta charset="UTF-8">
+
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
 <title>Revisiones Macro y Micro · Tablero de Triage — Recouromex</title>
+
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+
 <style>
+
   :root{
+
     --ink:#1a2e22;
+
     --green:#1F3864;
+
     --green-deep:#16294a;
+
     --accent:#2E75B6;
+
     --amber:#C9952B;
+
     --card:#ffffff;
+
     --line:#d9d3c6;
+
     --ok:#2e7d4f;
+
     --warn:#c9952b;
+
     --bad:#b53a2e;
+
     --crit:#7a1f17;
+
     --muted:#6b6457;
+
     --shadow:0 1px 3px rgba(31,56,100,.08),0 8px 24px rgba(31,56,100,.08);
+
   }
+
   *{box-sizing:border-box;margin:0;padding:0}
+
   body{
+
     font-family:Georgia,'Times New Roman',serif;
+
     background:radial-gradient(1200px 600px at 80% -10%,rgba(46,117,182,.10),transparent 60%),linear-gradient(180deg,#efeae0,#f4f1ea);
+
     color:var(--ink);min-height:100vh;padding:32px 20px 80px;
+
   }
+
   .wrap{max-width:1240px;margin:0 auto}
+
   header.top{display:flex;justify-content:space-between;align-items:flex-end;border-bottom:3px solid var(--green);padding-bottom:18px;margin-bottom:24px;flex-wrap:wrap;gap:16px}
+
   .brand .eyebrow{font-family:Arial,sans-serif;font-size:11px;letter-spacing:.28em;text-transform:uppercase;color:var(--accent);font-weight:700}
+
   .brand h1{font-size:27px;color:var(--green);letter-spacing:.5px;line-height:1.1;margin-top:4px}
+
   .brand .sub{font-family:Arial,sans-serif;font-size:13px;color:var(--muted);margin-top:6px}
+
   .period{text-align:right;font-family:Arial,sans-serif}
+
   .period .lbl{font-size:10px;letter-spacing:.2em;text-transform:uppercase;color:var(--muted)}
+
   .period .val{font-family:Georgia,serif;font-size:19px;color:var(--ink);font-weight:bold;margin-top:2px}
+
   .period select{margin-top:2px;font-family:Georgia,serif;font-size:18px;color:var(--ink);font-weight:bold;border:1px solid var(--line);border-radius:8px;padding:4px 10px;background:#fff;cursor:pointer}
 
   /* KPI summary cards */
+
   .summary{display:grid;grid-template-columns:repeat(5,1fr);gap:14px;margin-bottom:26px}
+
   @media(max-width:820px){.summary{grid-template-columns:repeat(2,1fr)}}
+
   .scard{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:18px 20px;box-shadow:var(--shadow);position:relative;overflow:hidden}
+
   .scard .big{font-size:34px;font-weight:bold;line-height:1}
+
   .scard .lab{font-family:Arial,sans-serif;font-size:12px;color:var(--muted);margin-top:6px}
+
   .scard .bar{position:absolute;left:0;top:0;bottom:0;width:5px}
+
   .scard.optimo .big{color:var(--ok)} .scard.optimo .bar{background:var(--ok)}
+
   .scard.riesgo .big{color:var(--warn)} .scard.riesgo .bar{background:var(--warn)}
+
   .scard.colapso .big{color:var(--bad)} .scard.colapso .bar{background:var(--bad)}
+
   .scard.retar .big{color:var(--accent)} .scard.retar .bar{background:var(--accent)}
 
   .leyenda{background:#fbfaf6;border:1px solid var(--line);border-radius:14px;padding:16px 20px;margin-bottom:22px;font-family:Arial,sans-serif;font-size:12.5px;line-height:1.7;color:var(--ink)}
+
   .leyenda h3{font-family:Georgia,serif;font-size:15px;color:var(--green);margin-bottom:8px}
+
   .leyenda b{color:var(--green)}
+
   .chip{display:inline-block;font-size:10px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;padding:2px 9px;border-radius:20px;color:#fff;vertical-align:middle}
+
   .chip.optimo{background:var(--ok)} .chip.riesgo{background:var(--warn)} .chip.colapso{background:var(--bad)} .chip.retar{background:var(--accent)}
 
   .card{background:var(--card);border:1px solid var(--line);border-radius:16px;box-shadow:var(--shadow);overflow:hidden;margin-bottom:24px}
+
   .chead{padding:18px 22px;border-bottom:1px solid var(--line);background:linear-gradient(180deg,#fbfaf6,#f6f3ec);display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px}
+
   .chead .t{font-size:19px;color:var(--green)}
+
   .chead .t small{display:block;font-family:Arial,sans-serif;font-size:10px;letter-spacing:.2em;text-transform:uppercase;color:var(--accent);margin-bottom:3px}
 
   .tablewrap{overflow-x:auto}
+
   table{width:100%;border-collapse:collapse;font-family:Arial,sans-serif;font-size:13px;min-width:980px}
+
   thead th{background:var(--green);color:#fff;font-weight:600;font-size:11px;letter-spacing:.05em;text-transform:uppercase;padding:11px 10px;text-align:center;position:sticky;top:0}
+
   thead th.left{text-align:left}
+
   tbody td{padding:9px 10px;border-bottom:1px solid var(--line);text-align:center;vertical-align:middle}
+
   tbody td.left{text-align:left}
+
   tbody tr:hover{background:#fbfaf6}
+
   .pname{font-family:Georgia,serif;font-size:14px;color:var(--ink)}
+
   .pname small{display:block;font-family:Arial,sans-serif;font-size:10px;color:var(--muted)}
+
   .cell-in{width:62px;font-family:Arial,sans-serif;font-size:13px;text-align:center;border:1px solid var(--line);border-radius:7px;padding:6px 4px;background:#fff}
+
   .sig{display:inline-block;width:13px;height:13px;border-radius:50%}
+
   .term{display:flex;gap:3px;justify-content:center}
-  .term input{width:38px;text-align:center;border:1px solid var(--line);border-radius:6px;padding:5px 2px;font-family:Arial,sans-serif;font-size:12px}
+
+  .term input{width:54px;text-align:center;border:1px solid var(--line);border-radius:6px;padding:6px 4px;font-family:Arial,sans-serif;font-size:13px}
+
   .estado{font-weight:700;font-size:11px;letter-spacing:.05em;text-transform:uppercase;padding:5px 10px;border-radius:20px;color:#fff;white-space:nowrap}
+
   .rev{font-weight:700;font-size:11px;letter-spacing:.05em;text-transform:uppercase;white-space:nowrap}
+
   .rev.macro{color:var(--bad)} .rev.macro2{color:var(--warn)} .rev.micro{color:var(--ok)} .rev.retar{color:var(--accent)}
+
   .months{width:46px;text-align:center;border:1px solid var(--line);border-radius:6px;padding:5px 2px;font-family:Arial,sans-serif;font-size:12px}
+
   .ejec{font-family:Arial,sans-serif;font-size:11px;color:var(--muted)}
+
   .pulso{display:flex;gap:3px;justify-content:center}
+
   .pbtn{cursor:pointer;border:1px solid var(--line);background:#fbfaf6;border-radius:7px;padding:4px 6px;font-size:13px;opacity:.4;transition:.12s;filter:grayscale(.6)}
+
   .pbtn:hover{opacity:.8}
+
   .pbtn.on{opacity:1;filter:none;border-color:var(--accent);background:#fff;transform:scale(1.12)}
+
   .accion{display:inline-block;font-family:Arial,sans-serif;font-size:10px;font-weight:700;letter-spacing:.03em;padding:4px 9px;border-radius:18px;color:#fff;white-space:nowrap;margin:1px 0}
+
   .accion.reta{background:var(--accent)}
+
   .accion.apoyo{background:var(--green);border:1px dashed #fff;box-shadow:0 0 0 1px var(--accent)}
+
   .scard.dison .big{color:var(--accent)} .scard.dison .bar{background:var(--accent)}
 
   .actions{display:flex;gap:12px;justify-content:center;margin-top:22px;flex-wrap:wrap}
+
   button.act{font-family:Arial,sans-serif;font-size:13px;cursor:pointer;border:1px solid var(--green);background:var(--green);color:#fff;padding:11px 22px;border-radius:10px;transition:.2s}
+
   button.act.ghost{background:transparent;color:var(--green)}
+
   button.act:disabled{opacity:.5;cursor:not-allowed}
+
   button.act:hover:not(:disabled){background:var(--green-deep);color:#fff}
+
   .note{font-family:Arial,sans-serif;font-size:11px;color:var(--muted);text-align:center;margin-top:20px;line-height:1.7}
 
   /* ===== Fase 2: barra de sesión, login PIN y toast ===== */
+
   .sessionbar{
+
     display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:12px;
+
     background:var(--card);border:1px solid var(--line);border-radius:12px;
+
     padding:10px 18px;margin-bottom:18px;font-family:Arial,sans-serif;font-size:12px;box-shadow:var(--shadow);
+
   }
+
   .sessionbar .who{color:var(--muted)}
+
   .sessionbar .who b{color:var(--green);font-family:Georgia,serif;font-size:14px}
+
   .sessionbar .sync{color:var(--muted);font-size:11px}
+
   .pill{display:inline-block;padding:3px 10px;border-radius:20px;font-size:11px;font-weight:700;margin-left:6px}
+
   .pill.on{background:rgba(46,125,79,.12);color:var(--ok)}
+
   .pill.off{background:rgba(107,100,87,.12);color:var(--muted)}
 
   .overlay{position:fixed;inset:0;z-index:1000;display:flex;align-items:center;justify-content:center;background:linear-gradient(135deg,rgba(22,41,74,.96),rgba(31,56,100,.96));padding:20px}
+
   .overlay.hidden{display:none}
+
   .loginbox{background:var(--card);border-radius:18px;box-shadow:0 20px 60px rgba(0,0,0,.35);width:100%;max-width:380px;padding:34px 30px;text-align:center}
+
   .loginbox .eyebrow{font-family:Arial,sans-serif;font-size:11px;letter-spacing:.28em;text-transform:uppercase;color:var(--accent);font-weight:700}
+
   .loginbox h2{font-family:Georgia,serif;font-size:23px;color:var(--green);margin:8px 0 4px}
+
   .loginbox p{font-family:Arial,sans-serif;font-size:12.5px;color:var(--muted);line-height:1.5;margin-bottom:20px}
+
   .loginbox input{width:100%;font-family:Arial,sans-serif;font-size:22px;letter-spacing:.4em;text-align:center;padding:12px;border:1px solid var(--line);border-radius:10px;margin-bottom:14px}
+
   .loginbox button{width:100%;font-family:Arial,sans-serif;font-size:14px;font-weight:700;cursor:pointer;border:none;background:var(--green);color:#fff;padding:13px;border-radius:10px;transition:.2s}
+
   .loginbox button:hover{background:var(--green-deep)}
+
   .loginbox .msg{font-family:Arial,sans-serif;font-size:12.5px;margin-top:14px;min-height:18px}
+
   .loginbox .msg.err{color:var(--bad)}
+
   .loginbox .msg.info{color:var(--muted)}
 
   .toast{position:fixed;left:50%;bottom:28px;transform:translateX(-50%) translateY(80px);background:var(--green-deep);color:#fff;font-family:Arial,sans-serif;font-size:13px;padding:13px 22px;border-radius:10px;box-shadow:0 10px 30px rgba(0,0,0,.3);opacity:0;transition:.25s;z-index:1100;max-width:90vw;text-align:center}
+
   .toast.show{transform:translateX(-50%) translateY(0);opacity:1}
+
   .toast.err{background:var(--bad)}
+
   .toast.ok{background:var(--ok)}
+
   .logout-btn{position:fixed;top:12px;right:14px;z-index:900;font-family:Arial,sans-serif;font-size:11px;font-weight:700;cursor:pointer;border:1px solid var(--line);background:rgba(255,255,255,.92);color:var(--muted);padding:6px 12px;border-radius:8px;display:none}
+
   .logout-btn.show{display:block}
+
   .logout-btn:hover{color:var(--bad);border-color:var(--bad)}
+
 </style>
+
 </head>
+
 <body>
 
 <!-- ===== LOGIN POR PIN ===== -->
 <div class="overlay" id="loginOverlay">
+
   <div class="loginbox">
+
     <div class="eyebrow">Recouromex · Revisiones</div>
+
     <h2>Acceso del capturista</h2>
+
     <p>Ingresa tu PIN personal para capturar el triage del periodo.</p>
+
     <input id="pinInput" type="password" inputmode="numeric" maxlength="6" placeholder="••••" autocomplete="off">
+
     <button id="pinBtn">Entrar</button>
+
     <div class="msg info" id="loginMsg">Conectando…</div>
+
   </div>
+
 </div>
 
 <div id="toast" class="toast"></div>
+
 <button class="logout-btn" id="logoutBtn" onclick="cerrarSesion()">Cerrar sesión</button>
 
 <div class="wrap">
+
   <!-- Barra de sesión -->
+
   <div class="sessionbar">
+
     <div class="who">Capturista en sesión: <b id="sessUser">—</b><span class="pill off" id="sessPill">sin sesión</span></div>
+
     <div class="sync">Periodo activo: <b id="sessPeriodo">—</b> · <span id="syncState">sincronización en pausa</span></div>
+
   </div>
 
   <header class="top">
+
     <div class="brand">
+
       <div class="eyebrow">Recouromex · SGC · Auditoría de Procesos</div>
+
       <h1>Revisiones Macro y Micro — Tablero de Triage</h1>
+
       <div class="sub">Clasificación automática del día 15 · a partir de los indicadores del mes</div>
+
     </div>
+
     <div class="period">
+
       <div class="lbl">Periodo evaluado</div>
+
       <select id="periodSel"></select>
+
     </div>
+
   </header>
 
   <div class="summary">
+
     <div class="scard optimo"><div class="bar"></div><div class="big" id="nOpt">0</div><div class="lab">Óptimo · Micro de seguimiento</div></div>
+
     <div class="scard riesgo"><div class="bar"></div><div class="big" id="nRie">0</div><div class="lab">En riesgo · Macro N2 (preventiva)</div></div>
+
     <div class="scard colapso"><div class="bar"></div><div class="big" id="nCol">0</div><div class="lab">Colapsado · Macro N1 (rescate)</div></div>
+
     <div class="scard dison"><div class="bar"></div><div class="big" id="nDis">0</div><div class="lab">⚑ Disonancia · proceso ok, persona no</div></div>
+
     <div class="scard retar"><div class="bar"></div><div class="big" id="nRetar">0</div><div class="lab">Retar meta · 3 meses al 100%</div></div>
+
   </div>
 
   <div class="leyenda">
+
     <h3>Cómo clasifica el tablero (reglas automáticas)</h3>
+
     Cada proceso entra con 4 señales del mes más el <b>pulso humano</b>. El semáforo de cada señal: <b>verde</b> en meta · <b>amarillo</b> rezago leve · <b>rojo</b> fuera de control.<br>
+
     <span class="chip colapso">Colapsado</span> 2+ señales en rojo, <b>o</b> una sola crítica (KPI &lt; 60% de meta, o candado de cultura violado) → <b>Macro N1</b> · auditoría profunda de rescate (Alma + coordinador) → acción: <b>Plan de Rescate</b>.<br>
+
     <span class="chip riesgo">En riesgo</span> 1 señal en rojo (no crítica) o 2+ amarillas → <b>Macro N2</b> · auditoría profunda preventiva (Alma + coordinador) → acción: <b>Plan de Mejora</b>.<br>
+
     <span class="chip optimo">Óptimo</span> todo verde o máx. 1 amarilla → <b>Micro</b> · seguimiento ligero (Alma) → acción: <b>Reporte de Lecciones Aprendidas</b> (qué hace bien, para replicar).<br>
+
     <span class="chip retar">Retar meta</span> 3 meses consecutivos al 100% → <b>Reta Estratégica</b>: se sube la vara (principio SMART).<br>
+
     <span class="chip" style="background:var(--accent)">⚑ Disonancia</span> el proceso va bien (KPI en meta) <b>pero la persona no</b> —cae su Eficiencia de Puesto o Cultura, hay candado, o el pulso humano marca presión/alerta— → acción: <b>Acompañamiento al Colaborador</b>. Es el punto ciego: números verdes que esconden a alguien desgastándose.
+
   </div>
 
   <section class="card">
+
     <div class="chead">
+
       <div class="t"><small>16 procesos · captura de indicadores del mes</small>Triage de procesos</div>
+
       <div class="ejec" style="font-size:12px">Umbrales: KPI meta ≥100% · Ef. Puesto ≥90 · Cultura ≥80 · Termómetro = entregables/actividades/proyectos</div>
+
     </div>
+
     <div class="tablewrap">
+
       <table>
+
         <thead>
+
           <tr>
+
             <th class="left">Proceso</th>
-            <th>KPI<br>(% de meta)</th>
+
+            <th>KPI<br>(%  de meta)</th>
+
             <th>Ef.<br>Puesto</th>
+
             <th>Apego<br>Cultura</th>
+
             <th>Cand.<br>cultura</th>
+
             <th>Termómetro<br>(Ent/Act/Proy)</th>
+
             <th>Pulso<br>humano</th>
+
             <th>Señales</th>
+
             <th>Meses<br>100%</th>
+
             <th>Estado</th>
+
             <th>Revisión</th>
+
             <th>Acción</th>
+
             <th>Ejecuta</th>
+
           </tr>
+
         </thead>
+
         <tbody id="tbody"></tbody>
+
       </table>
+
     </div>
+
   </section>
 
   <div class="actions">
+
     <button class="act" id="saveBtn">Guardar revisión</button>
+
     <button class="act ghost" onclick="window.print()">Exportar / Imprimir PDF</button>
+
     <button class="act ghost" onclick="resetAll()">Limpiar capturas</button>
+
   </div>
 
   <p class="note">
+
     El estado <b>no se captura, se calcula</b> a partir de los indicadores que ya produces cada mes (juntas de KPI, Eficiencia de Puesto, Comité de Cultura).<br>
+
     Este tablero es el paso previo a la auditoría: te dice <b>a quién auditar y con qué profundidad</b>. La revisión Macro/Micro en sí se documenta aparte.
+
   </p>
+
 </div>
 
 <script>
+
 /* =====================================================================
+
    ███  CONFIG — EDITA SOLO ESTE BLOQUE  ███
+
    Rodrigo pega aquí la URL y la ANON key del proyecto Supabase donde
+
    corriste rev_fase1.sql. NO uses la service_role key, solo la anon.
+
    ===================================================================== */
+
 const CONFIG = {
-  SUPABASE_URL:      "https://qcwpnovwyhzhqqmhjxco.supabase.co",   // ej: https://qcwpnovwyhzhqqmhjxco.supabase.co
-  SUPABASE_ANON_KEY: "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InFjd3Bub3Z3eWh6aHFxbWhqeGNvIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzk3MDA3OTUsImV4cCI6MjA5NTI3Njc5NX0.-MSnn07PdxstQ90OLf16823Nvihr47ePXoQSFvgC3mU",          // la llave pública (anon)
-  PERIODO:           ""                                  // vacío = mes actual (YYYY-MM). Ej fijo: "2026-05"
+
+  SUPABASE_URL:      "https://qcwpnovwyhzhqqmhjxco.supabase.co",
+
+  SUPABASE_ANON_KEY: "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InFjd3Bub3Z3eWh6aHFxbWhqeGNvIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzk3MDA3OTUsImV4cCI6MjA5NTI3Njc5NX0.-MSnn07PdxstQ90OLf16823Nvihr47ePXoQSFvgC3mU",
+
+  PERIODO:           ""
+
 };
+
 /* ===================================================================== */
 
 let db = null;
+
 const SESSION = { pin:null, evalId:null, evalNombre:null, evalRol:null };
+
 let PERIODO = CONFIG.PERIODO || (()=>{ const d=new Date(); return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0'); })();
+
 let dirty = false;
+
 let syncTimer = null;
+
 const cfgOK = CONFIG.SUPABASE_URL && !CONFIG.SUPABASE_URL.startsWith("PEGAR")
+
            && CONFIG.SUPABASE_ANON_KEY && !CONFIG.SUPABASE_ANON_KEY.startsWith("PEGAR");
 
 /* Procesos: se cargan desde el catálogo rev_procesos */
+
 let procesos = [];   // {id, nm, coord, kpi, efp, cult, candado, ent, act, proy, m100, pulso}
 
 /* ---- Semáforos por señal (regla dura, NO rediseñar) ---- */
+
 function sigKPI(v){ if(v==null)return null; if(v>=100)return'ok'; if(v>=80)return'warn'; if(v>=60)return'bad'; return'crit'; }
+
 function sigEFP(v){ if(v==null)return null; if(v>=90)return'ok'; if(v>=75)return'warn'; return'bad'; }
+
 function sigCULT(v,cand){ if(cand)return'crit'; if(v==null)return null; if(v>=80)return'ok'; if(v>=60)return'warn'; return'bad'; }
+
 function sigTERM(p){
+
   const vals=[p.ent,p.act,p.proy];
+
   if(vals.some(v=>v==null))return null;
+
   const fails=vals.filter(v=>v<100).length;
+
   if(fails===0)return'ok'; if(fails===1)return'warn'; return'bad';
+
 }
+
 const sigColor={ok:'var(--ok)',warn:'var(--warn)',bad:'var(--bad)',crit:'var(--crit)'};
 
 /* ---- Clasificación (regla dura, NO rediseñar) ---- */
+
 function clasificar(p){
+
   const s=[sigKPI(p.kpi),sigEFP(p.efp),sigCULT(p.cult,p.candado),sigTERM(p)];
+
   const known=s.filter(x=>x!=null);
+
   if(known.length<4) return {estado:'pendiente', rev:'—', reds:0, ambers:0, crit:false};
+
   const reds=s.filter(x=>x==='bad').length;
+
   const crits=s.filter(x=>x==='crit').length;
+
   const ambers=s.filter(x=>x==='warn').length;
+
   const critical = crits>0 || (p.kpi!=null && p.kpi<60) || p.candado;
+
   let estado, rev;
+
   if((reds+crits)>=2 || critical){ estado='colapsado'; rev='macro1'; }
+
   else if(reds===1 || ambers>=2){ estado='riesgo'; rev='macro2'; }
+
   else { estado='optimo'; rev='micro'; }
 
   const procesoBien = p.kpi!=null && p.kpi>=100;
+
   const puestoDuroMal = (p.efp!=null && p.efp<90) || (p.cult!=null && p.cult<80) || p.candado;
+
   const pulsoMal = p.pulso==='warn' || p.pulso==='bad';
+
   const disonancia = procesoBien && (puestoDuroMal || pulsoMal);
 
   let accion, accionClass;
+
   if(estado==='colapsado'){ accion='Plan de Rescate'; accionClass='rescate'; }
+
   else if(estado==='riesgo'){ accion='Plan de Mejora'; accionClass='mejora'; }
+
   else { accion='Lecciones Aprendidas'; accionClass='lecciones'; }
+
   const retar = p.m100>=3;
 
   return {estado, rev, reds:reds+crits, ambers, crit:critical, disonancia, accion, accionClass, retar, pulsoMal, puestoDuroMal};
+
 }
 
 function render(){
+
   const tb=document.getElementById('tbody');
+
   tb.innerHTML='';
+
   let nOpt=0,nRie=0,nCol=0,nRetar=0,nDis=0;
+
   procesos.forEach((p,i)=>{
+
     const c=clasificar(p);
+
     if(c.estado==='optimo')nOpt++; else if(c.estado==='riesgo')nRie++; else if(c.estado==='colapsado')nCol++;
+
     if(c.retar)nRetar++;
+
     if(c.disonancia)nDis++;
 
     const dot=(sig)=>sig?`<span class="sig" style="background:${sigColor[sig]}"></span>`:'<span style="color:var(--muted)">·</span>';
+
     const estadoColors={optimo:'var(--ok)',riesgo:'var(--warn)',colapsado:'var(--bad)',pendiente:'var(--muted)'};
+
     const estadoLabel={optimo:'Óptimo',riesgo:'En riesgo',colapsado:'Colapsado',pendiente:'Pendiente'};
+
     let revLabel='—', revClass='', ejec='—';
+
     if(c.rev==='macro1'){revLabel='MACRO N1';revClass='macro';ejec='Alma + Coord.';}
+
     else if(c.rev==='macro2'){revLabel='MACRO N2';revClass='macro2';ejec='Alma + Coord.';}
+
     else if(c.rev==='micro'){revLabel='MICRO';revClass='micro';ejec='Alma';}
+
     let revCell = `<span class="rev ${revClass}">${revLabel}</span>`;
 
     let accionCell='—';
+
     if(c.estado!=='pendiente'){
+
       const accColors={rescate:'var(--bad)',mejora:'var(--warn)',lecciones:'var(--ok)'};
+
       accionCell=`<span class="accion" style="background:${accColors[c.accionClass]}">${c.accion}</span>`;
+
       if(c.retar) accionCell+=`<br><span class="accion reta">Reta Estratégica</span>`;
+
       if(c.disonancia) accionCell+=`<br><span class="accion apoyo">⚑ Acompañamiento</span>`;
+
     }
 
     const pulsoSel=`
+
       <div class="pulso">
+
         <button class="pbtn pgreen${p.pulso==='ok'?' on':''}" data-i="${i}" data-pulso="ok" title="Estable">🟢</button>
+
         <button class="pbtn pamber${p.pulso==='warn'?' on':''}" data-i="${i}" data-pulso="warn" title="Bajo presión">🟡</button>
+
         <button class="pbtn pred${p.pulso==='bad'?' on':''}" data-i="${i}" data-pulso="bad" title="En alerta">🔴</button>
+
       </div>`;
 
     const tr=document.createElement('tr');
+
     if(c.disonancia) tr.style.background='rgba(46,117,182,.06)';
+
     tr.innerHTML=`
+
       <td class="left"><div class="pname">${p.nm}${p.coord?`<small>${p.coord}</small>`:''}</div></td>
+
       <td><input class="cell-in" type="number" min="0" data-i="${i}" data-k="kpi" value="${p.kpi??''}" placeholder="—"> ${dot(sigKPI(p.kpi))}</td>
+
       <td><input class="cell-in" type="number" min="0" max="100" data-i="${i}" data-k="efp" value="${p.efp??''}" placeholder="—"> ${dot(sigEFP(p.efp))}</td>
+
       <td><input class="cell-in" type="number" min="0" max="100" data-i="${i}" data-k="cult" value="${p.cult??''}" placeholder="—"> ${dot(sigCULT(p.cult,p.candado))}</td>
+
       <td><input type="checkbox" data-i="${i}" data-k="candado" ${p.candado?'checked':''}></td>
+
       <td><div class="term">
+
         <input type="number" min="0" max="100" data-i="${i}" data-k="ent" value="${p.ent??''}" placeholder="E" title="Entregables">
+
         <input type="number" min="0" max="100" data-i="${i}" data-k="act" value="${p.act??''}" placeholder="A" title="Actividades">
+
         <input type="number" min="0" max="100" data-i="${i}" data-k="proy" value="${p.proy??''}" placeholder="P" title="Proyectos">
+
       </div> ${dot(sigTERM(p))}</td>
+
       <td>${pulsoSel}</td>
+
       <td><b style="color:var(--bad)">${c.reds||0}</b>🔴 <span style="color:var(--warn)">${c.ambers||0}</span>🟡</td>
+
       <td><input class="months" type="number" min="0" data-i="${i}" data-k="m100" value="${p.m100}"></td>
+
       <td><span class="estado" style="background:${estadoColors[c.estado]}">${estadoLabel[c.estado]}</span></td>
+
       <td>${revCell}</td>
+
       <td>${accionCell}</td>
+
       <td class="ejec">${c.rev!=='—'?ejec:'—'}</td>`;
+
     tb.appendChild(tr);
+
   });
+
   document.getElementById('nOpt').textContent=nOpt;
+
   document.getElementById('nRie').textContent=nRie;
+
   document.getElementById('nCol').textContent=nCol;
+
   document.getElementById('nRetar').textContent=nRetar;
+
   const dEl=document.getElementById('nDis'); if(dEl) dEl.textContent=nDis;
+
 }
 
 /* ---- eventos de captura ---- */
+
 document.addEventListener('click', e=>{
+
   const t=e.target;
+
   if(t.classList && t.classList.contains('pbtn')){
+
     const i=+t.dataset.i, val=t.dataset.pulso;
+
     procesos[i].pulso = procesos[i].pulso===val? null : val;
+
     markDirty(); render();
+
   }
+
 });
+
+// input: SOLO actualiza el dato en memoria (no recalcula, no redibuja). Así el
+
+// input nunca se reconstruye mientras escribes → puedes teclear "95" completo.
+
+// El modelo queda siempre al día (Guardar lee de aquí, aunque no hayas salido).
+
 document.addEventListener('input', e=>{
+
   const t=e.target;
+
   if(t.dataset && t.dataset.i!==undefined && t.dataset.k!==undefined){
+
     const i=+t.dataset.i, k=t.dataset.k;
+
     if(k==='candado'){ procesos[i][k]=t.checked; }
+
     else if(k==='m100'){ procesos[i][k]=parseInt(t.value)||0; }
+
     else { procesos[i][k] = t.value===''? null : parseFloat(t.value); }
-    markDirty(); render();
+
+    markDirty();
+
   }
+
+});
+
+// change: el recálculo/redibujado ocurre al SALIR de la casilla (clic fuera /
+
+// Tab / Enter / flechas), NO en cada tecla. Se difiere un tick para no robarle
+
+// el foco al campo siguiente cuando sales con Tab, y se restaura el foco donde
+
+// el usuario quedó.
+
+let _recalcT=null;
+
+document.addEventListener('change', e=>{
+
+  const t=e.target;
+
+  if(t.dataset && t.dataset.i!==undefined && t.dataset.k!==undefined){
+
+    clearTimeout(_recalcT);
+
+    _recalcT=setTimeout(()=>{
+
+      const a=document.activeElement;
+
+      const ai=(a&&a.dataset)?a.dataset.i:undefined, ak=(a&&a.dataset)?a.dataset.k:undefined;
+
+      render();
+
+      if(ai!==undefined && ak!==undefined){
+
+        const el=document.querySelector('[data-i="'+ai+'"][data-k="'+ak+'"]');
+
+        if(el) el.focus();
+
+      }
+
+    },0);
+
+  }
+
 });
 
 function markDirty(){
+
   dirty=true;
+
   document.getElementById('syncState').innerHTML='cambios sin guardar · sincronización en pausa';
+
 }
 
 function resetAll(){
+
   procesos.forEach(p=>{p.kpi=null;p.efp=null;p.cult=null;p.candado=false;p.ent=null;p.act=null;p.proy=null;p.m100=0;p.pulso=null;});
+
   markDirty(); render();
+
 }
 
 /* =====================================================================
+
    CAPA DE DATOS
+
    ===================================================================== */
+
 function toast(msg, kind){
+
   const t=document.getElementById('toast');
+
   t.textContent=msg;
+
   t.className='toast show'+(kind?(' '+kind):'');
+
   clearTimeout(t._h);
+
   t._h=setTimeout(()=>{ t.className='toast'; }, 3800);
+
 }
 
 function periodoLabel(per){
+
   const meses=['Enero','Febrero','Marzo','Abril','Mayo','Junio','Julio','Agosto','Septiembre','Octubre','Noviembre','Diciembre'];
+
   const parts=String(per).split('-');
+
   const m=parseInt(parts[1],10);
+
   return (meses[m-1]||per)+' '+parts[0];
+
 }
 
 /* Carga catálogo de procesos + revisiones del periodo */
+
 async function load(){
+
   if(!db) return;
+
   try{
+
     const procRes = await db.from('rev_procesos').select('id,nombre,coord,orden,activo').eq('activo',true).order('orden');
+
     if(procRes.error) throw procRes.error;
+
     const revRes = await db.from('rev_revisiones').select('*').eq('periodo', PERIODO);
+
     if(revRes.error) throw revRes.error;
 
     const byProc = {};
+
     (revRes.data||[]).forEach(r=>{ byProc[r.proceso_id]=r; });
 
     procesos = (procRes.data||[]).map(pr=>{
+
       const r = byProc[pr.id] || {};
+
       return {
+
         id:pr.id, nm:pr.nombre, coord:pr.coord||'',
+
         kpi:(r.kpi??null), efp:(r.efp??null), cult:(r.cult??null), candado:!!r.candado,
+
         ent:(r.ent??null), act:(r.act??null), proy:(r.proy??null),
+
         m100:(r.m100??0), pulso:(r.pulso??null)
+
       };
+
     });
 
     dirty=false;
+
     render();
+
     document.getElementById('syncState').textContent='actualizado';
+
   }catch(err){
+
     console.error(err);
+
     toast('Error al cargar: '+(err.message||err), 'err');
+
   }
+
 }
 
 /* Guarda las 16 revisiones del periodo (una llamada por proceso) */
+
 async function save(){
+
   if(!db){ toast('Sin conexión', 'err'); return; }
+
   if(!SESSION.pin){ toast('Inicia sesión con tu PIN', 'err'); return; }
+
   if(!procesos.length){ toast('No hay procesos cargados', 'err'); return; }
 
   const btn=document.getElementById('saveBtn');
+
   const orig=btn.textContent;
+
   btn.disabled=true; btn.textContent='Guardando…';
+
   let okCount=0, errCount=0;
+
   try{
+
     for(const p of procesos){
+
       const c=clasificar(p);
+
       const { error } = await db.rpc('rev_upsert_revision', {
+
         p_pin:        SESSION.pin,
+
         p_proceso:    p.id,
+
         p_periodo:    PERIODO,
+
         p_kpi:        p.kpi,
+
         p_efp:        p.efp,
+
         p_cult:       p.cult,
+
         p_candado:    !!p.candado,
+
         p_ent:        p.ent,
+
         p_act:        p.act,
+
         p_proy:       p.proy,
+
         p_pulso:      p.pulso,
+
         p_m100:       p.m100||0,
+
         p_estado:     c.estado,
+
         p_revision:   (c.rev==='—'? null : c.rev),
+
         p_disonancia: !!c.disonancia,
+
         p_retar:      !!c.retar,
+
         p_accion:     (c.estado==='pendiente'? null : c.accion)
+
       });
+
       if(error){ errCount++; console.error(p.id, error); } else { okCount++; }
+
     }
+
     dirty=false;
+
     if(errCount===0){ toast('Revisión guardada · '+okCount+' procesos ✓', 'ok'); document.getElementById('syncState').textContent='guardado'; }
+
     else { toast('Guardado parcial: '+okCount+' ok, '+errCount+' con error', 'err'); }
+
   }catch(err){
+
     console.error(err);
+
     toast('No se pudo guardar: '+(err.message||err), 'err');
+
   }finally{
+
     btn.disabled=false; btn.textContent=orig;
+
   }
+
 }
 
 /* Sincronización ligera cada 30 s. No pisa cambios sin guardar. */
+
 function startSync(){
+
   if(syncTimer) clearInterval(syncTimer);
+
   syncTimer=setInterval(()=>{ if(dirty) return; load(); }, 30000);
+
 }
 
 /* ---- Login por PIN ---- */
+
 function cerrarSesion(){
+
   SESSION.pin=null; SESSION.evalId=null; SESSION.evalNombre=null; SESSION.evalRol=null;
+
   if(syncTimer){ clearInterval(syncTimer); syncTimer=null; }
+
   dirty=false;
+
   const lb=document.getElementById('logoutBtn'); if(lb) lb.classList.remove('show');
+
   const su=document.getElementById('sessUser'); if(su) su.textContent='—';
+
   const sp=document.getElementById('sessPill'); if(sp){ sp.className='pill off'; sp.textContent='sin sesión'; }
+
   const ss=document.getElementById('syncState'); if(ss) ss.textContent='sesión cerrada';
+
   const pin=document.getElementById('pinInput'); if(pin) pin.value='';
+
   const msg=document.getElementById('loginMsg'); if(msg){ msg.className='msg info'; msg.textContent='Ingresa tu PIN.'; }
+
   document.getElementById('loginOverlay').classList.remove('hidden');
+
   if(pin) pin.focus();
+
 }
+
 async function doLogin(){
+
   const msg=document.getElementById('loginMsg');
+
   const pin=document.getElementById('pinInput').value.trim();
+
   if(!pin){ msg.className='msg err'; msg.textContent='Escribe tu PIN.'; return; }
+
   if(!db){ msg.className='msg err'; msg.textContent='Falta configurar el acceso (bloque CONFIG).'; return; }
+
   msg.className='msg info'; msg.textContent='Verificando…';
+
   try{
+
     const { data, error } = await db.rpc('rev_check_pin', { p_pin: pin });
+
     if(error) throw error;
+
     if(!data){ msg.className='msg err'; msg.textContent='PIN incorrecto.'; return; }
+
     SESSION.pin=pin; SESSION.evalId=data;
+
     const ev = await db.from('rev_evaluadores_publico').select('id,nombre,rol').eq('id',data).maybeSingle();
+
     SESSION.evalNombre = ev.data ? ev.data.nombre : data;
+
     SESSION.evalRol    = ev.data ? ev.data.rol : '';
+
     document.getElementById('sessUser').textContent = SESSION.evalNombre;
+
     const pill=document.getElementById('sessPill'); pill.className='pill on'; pill.textContent=SESSION.evalRol||'en sesión';
+
     document.getElementById('sessPeriodo').textContent = PERIODO;
+
     document.getElementById('loginOverlay').classList.add('hidden');
+
     document.getElementById('logoutBtn').classList.add('show');
+
     await load();
+
     startSync();
+
     toast('Bienvenido(a), '+SESSION.evalNombre, 'ok');
+
   }catch(err){
+
     console.error(err);
+
     msg.className='msg err'; msg.textContent='Error al validar PIN: '+(err.message||err);
+
   }
+
 }
 
 /* ---- Arranque ---- */
+
 function fillPeriodSelect(){
+
   const sel=document.getElementById('periodSel'); if(!sel) return;
+
   const anio=2026;
+
   const meses=['Enero','Febrero','Marzo','Abril','Mayo','Junio','Julio','Agosto','Septiembre','Octubre','Noviembre','Diciembre'];
+
   sel.innerHTML='';
+
   for(let m=1;m<=12;m++){ const val=anio+'-'+String(m).padStart(2,'0'); const o=document.createElement('option'); o.value=val; o.textContent=meses[m-1]+' '+anio; sel.appendChild(o); }
+
   if([...sel.options].some(o=>o.value===PERIODO)) sel.value=PERIODO; else { sel.value=anio+'-'+String(new Date().getMonth()+1).padStart(2,'0'); PERIODO=sel.value; }
+
   document.getElementById('sessPeriodo').textContent=PERIODO;
+
   sel.addEventListener('change',e=>{
+
     if(dirty && !confirm('Tienes cambios sin guardar en este mes. ¿Cambiar de periodo y descartarlos?')){ e.target.value=PERIODO; return; }
+
     PERIODO=e.target.value; document.getElementById('sessPeriodo').textContent=PERIODO; dirty=false;
+
     if(db && SESSION.pin) load();
+
   });
+
 }
+
 function init(){
+
   fillPeriodSelect();
+
   document.getElementById('sessPeriodo').textContent = PERIODO;
+
   render();
 
   const msg=document.getElementById('loginMsg');
+
   if(!cfgOK){
+
     msg.className='msg err';
-    msg.innerHTML='⚠ Falta pegar la URL y la llave en el bloque <b>CONFIG</b> (arriba en el código). Pídeselo a Rodrigo.';
+
+    msg.innerHTML='⚠ Falta pegar la URL y la llave en el bloque <b>CONFIG</b> (arriba en el código). Pídelo a Rodrigo.';
+
     document.getElementById('pinBtn').disabled=true;
+
     return;
+
   }
+
   db = window.supabase.createClient(CONFIG.SUPABASE_URL, CONFIG.SUPABASE_ANON_KEY);
+
   msg.className='msg info'; msg.textContent='Conectado. Ingresa tu PIN.';
 
   document.getElementById('pinBtn').addEventListener('click', doLogin);
+
   document.getElementById('pinInput').addEventListener('keydown', e=>{ if(e.key==='Enter') doLogin(); });
+
   document.getElementById('saveBtn').addEventListener('click', save);
+
   document.getElementById('pinInput').focus();
+
 }
+
 init();
+
 </script>
+
 </body>
+
 </html>
