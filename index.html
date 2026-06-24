@@ -343,7 +343,7 @@
 
       <div class="t"><small>16 procesos · captura de indicadores del mes</small>Triage de procesos</div>
 
-      <div class="ejec" style="font-size:12px">Umbrales: KPI meta ≥100% · Ef. Puesto ≥90 · Cultura ≥80 · Termómetro = entregables/actividades/proyectos</div>
+      <div class="ejec" style="font-size:12px">Umbrales: KPI meta ≥100% · Ef. Puesto ≥90 · Cultura ≥80 · Termómetro = actividades (% tareas) y proyectos (% avance), leídos del Gestor</div>
 
     </div>
 
@@ -365,7 +365,7 @@
 
             <th>Cand.<br>cultura</th>
 
-            <th>Termómetro<br>(Ent/Act/Proy)</th>
+            <th>Termómetro<br>(Act/Proy)</th>
 
             <th>Pulso<br>humano</th>
 
@@ -463,16 +463,16 @@ function sigEFP(v){ if(v==null)return null; if(v>=90)return'ok'; if(v>=75)return
 
 function sigCULT(v,cand){ if(cand)return'crit'; if(v==null)return null; if(v>=80)return'ok'; if(v>=60)return'warn'; return'bad'; }
 
+/* FASE 2: ACT (% tareas del Gestor) y PROY (% proyectos del Gestor) con bandas.
+   Termometro = peor color entre ACT y PROY; si una falta, usa la otra. */
+function bandACT(v){ if(v==null)return null; if(v>=90)return'ok'; if(v>=75)return'warn'; return'bad'; }
+function bandPROY(v){ if(v==null)return null; if(v>=80)return'ok'; if(v>=60)return'warn'; return'bad'; }
 function sigTERM(p){
-
-  const vals=[p.ent,p.act,p.proy];
-
-  if(vals.some(v=>v==null))return null;
-
-  const fails=vals.filter(v=>v<100).length;
-
-  if(fails===0)return'ok'; if(fails===1)return'warn'; return'bad';
-
+  const a=bandACT(p.act), pr=bandPROY(p.proy);
+  const present=[a,pr].filter(x=>x!=null);
+  if(present.length===0) return null;
+  const rank={ok:0,warn:1,bad:2};
+  return present.reduce((w,x)=> rank[x]>rank[w]? x : w);
 }
 
 const sigColor={ok:'var(--ok)',warn:'var(--warn)',bad:'var(--bad)',crit:'var(--crit)'};
@@ -602,13 +602,8 @@ function render(){
       <td><input type="checkbox" data-i="${i}" data-k="candado" ${p.candado?'checked':''}></td>
 
       <td><div class="term">
-
-        <input type="number" min="0" max="100" data-i="${i}" data-k="ent" value="${p.ent??''}" placeholder="E" title="Entregables">
-
-        <input type="number" min="0" max="100" data-i="${i}" data-k="act" value="${p.act??''}" placeholder="A" title="Actividades">
-
-        <input type="number" min="0" max="100" data-i="${i}" data-k="proy" value="${p.proy??''}" placeholder="P" title="Proyectos">
-
+        <span style="font-family:Arial,sans-serif;font-size:12px;font-weight:700;padding:5px 4px;color:${p.act==null?'var(--muted)':sigColor[bandACT(p.act)]}" title="Actividades · % tareas del responsable (Gestor)">A ${p.act==null?'—':Math.round(p.act)}</span>
+        <span style="font-family:Arial,sans-serif;font-size:12px;font-weight:700;padding:5px 4px;color:${p.proy==null?'var(--muted)':sigColor[bandPROY(p.proy)]}" title="Proyectos · % avance congelado (Gestor)">P ${p.proy==null?'—':Math.round(p.proy)}</span>
       </div> ${dot(sigTERM(p))}</td>
 
       <td>${pulsoSel}</td>
@@ -735,7 +730,7 @@ function markDirty(){
 
 function resetAll(){
 
-  procesos.forEach(p=>{p.kpi=null;p.efp=null;p.cult=null;p.candado=false;p.ent=null;p.act=null;p.proy=null;p.m100=0;p.pulso=null;});
+  procesos.forEach(p=>{p.kpi=null;p.efp=null;p.cult=null;p.candado=false;p.m100=0;p.pulso=null;});
 
   markDirty(); render();
 
@@ -810,6 +805,22 @@ async function load(){
       };
 
     });
+
+    // ---- FASE 2: ACT y PROY se LEEN del Gestor (no se capturan a mano) ----
+    try{
+      const [actRes, proyRes] = await Promise.all([
+        db.from('gpr2_act_por_proceso').select('proceso_id,act').eq('periodo', PERIODO),
+        db.from('gpr2_proyectos_cierre').select('proceso_id,porcentaje').eq('periodo', PERIODO)
+      ]);
+      const actMap={}, proyMap={};
+      (actRes.data||[]).forEach(r=>{ actMap[r.proceso_id]=r.act; });
+      (proyRes.data||[]).forEach(r=>{ proyMap[r.proceso_id]=r.porcentaje; });
+      procesos.forEach(p=>{
+        p.ent  = null;
+        p.act  = (actMap[p.id]!=null)? Number(actMap[p.id]) : null;
+        p.proy = (proyMap[p.id]!=null)? Number(proyMap[p.id]) : null;
+      });
+    }catch(e){ console.warn('insumos Gestor (ACT/PROY):', e.message||e); }
 
     dirty=false;
 
