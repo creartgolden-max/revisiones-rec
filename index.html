@@ -325,7 +325,7 @@
 
     Cada proceso entra con 4 señales del mes más el <b>pulso humano</b>. El semáforo de cada señal: <b>verde</b> en meta · <b>amarillo</b> rezago leve · <b>rojo</b> fuera de control.<br>
 
-    <span class="chip colapso">Colapsado</span> 2+ señales en rojo, <b>o</b> una sola crítica (KPI &lt; 60% de meta, o candado de cultura violado) → <b>Macro N1</b> · auditoría profunda de rescate (Alma + coordinador) → acción: <b>Plan de Rescate</b>.<br>
+    <span class="chip colapso">Colapsado</span> 2+ señales en rojo, <b>o</b> una sola crítica (KPI muy por debajo de su meta —más de 40 pts—, o candado de cultura violado) → <b>Macro N1</b> · auditoría profunda de rescate (Alma + coordinador) → acción: <b>Plan de Rescate</b>.<br>
 
     <span class="chip riesgo">En riesgo</span> 1 señal en rojo (no crítica) o 2+ amarillas → <b>Macro N2</b> · auditoría profunda preventiva (Alma + coordinador) → acción: <b>Plan de Mejora</b>.<br>
 
@@ -343,7 +343,7 @@
 
       <div class="t"><small>16 procesos · captura de indicadores del mes</small>Triage de procesos</div>
 
-      <div class="ejec" style="font-size:12px">Umbrales: KPI meta ≥100% · Ef. Puesto ≥90 · Cultura ≥80 · Termómetro = actividades (% tareas) y proyectos (% avance), leídos del Gestor</div>
+      <div class="ejec" style="font-size:12px">Umbrales: KPI verde si alcanza <b>su meta</b> (por proceso; se muestra bajo cada celda) · Ef. Puesto ≥90 · Cultura ≥80 · Termómetro = actividades (% tareas) y proyectos (% avance), leídos del Gestor</div>
 
     </div>
 
@@ -457,7 +457,7 @@ let procesos = [];   // {id, nm, coord, kpi, efp, cult, candado, ent, act, proy,
 
 /* ---- Semáforos por señal (regla dura, NO rediseñar) ---- */
 
-function sigKPI(v){ if(v==null)return null; if(v>=100)return'ok'; if(v>=80)return'warn'; if(v>=60)return'bad'; return'crit'; }
+function sigKPI(v,meta){ if(v==null)return null; const M=(meta!=null?meta:100); if(v>=M)return'ok'; if(v>=M-20)return'warn'; if(v>=M-40)return'bad'; return'crit'; }
 
 function sigEFP(v){ if(v==null)return null; if(v>=90)return'ok'; if(v>=75)return'warn'; return'bad'; }
 
@@ -481,7 +481,7 @@ const sigColor={ok:'var(--ok)',warn:'var(--warn)',bad:'var(--bad)',crit:'var(--c
 
 function clasificar(p){
 
-  const s=[sigKPI(p.kpi),sigEFP(p.efp),sigCULT(p.cult,p.candado),sigTERM(p)];
+  const s=[sigKPI(p.kpi,p.meta),sigEFP(p.efp),sigCULT(p.cult,p.candado),sigTERM(p)];
 
   const known=s.filter(x=>x!=null);
 
@@ -493,7 +493,7 @@ function clasificar(p){
 
   const ambers=s.filter(x=>x==='warn').length;
 
-  const critical = crits>0 || (p.kpi!=null && p.kpi<60) || p.candado;
+  const critical = crits>0 || (p.kpi!=null && p.kpi < ((p.meta!=null?p.meta:100)-40)) || p.candado;
 
   let estado, rev;
 
@@ -503,7 +503,7 @@ function clasificar(p){
 
   else { estado='optimo'; rev='micro'; }
 
-  const procesoBien = p.kpi!=null && p.kpi>=100;
+  const procesoBien = p.kpi!=null && p.kpi>=(p.meta!=null?p.meta:100);
 
   const puestoDuroMal = (p.efp!=null && p.efp<90) || (p.cult!=null && p.cult<80) || p.candado;
 
@@ -593,7 +593,7 @@ function render(){
 
       <td class="left"><div class="pname">${p.nm}${p.coord?`<small>${p.coord}</small>`:''}</div></td>
 
-      <td><input class="cell-in" type="number" min="0" data-i="${i}" data-k="kpi" value="${p.kpi??''}" placeholder="—"> ${dot(sigKPI(p.kpi))}</td>
+      <td><input class="cell-in" type="number" min="0" data-i="${i}" data-k="kpi" value="${p.kpi??''}" placeholder="—"> ${dot(sigKPI(p.kpi,p.meta))}<div style="font-size:10px;color:var(--muted);font-family:Arial;margin-top:2px">meta ${p.meta}%</div></td>
 
       <td><input class="cell-in" type="number" min="0" max="100" data-i="${i}" data-k="efp" value="${p.efp??''}" placeholder="—"> ${dot(sigEFP(p.efp))}</td>
 
@@ -776,7 +776,7 @@ async function load(){
 
   try{
 
-    const procRes = await db.from('rev_procesos').select('id,nombre,coord,orden,activo').eq('activo',true).order('orden');
+    const procRes = await db.from('rev_procesos').select('id,nombre,coord,orden,activo,meta_kpi').eq('activo',true).order('orden');
 
     if(procRes.error) throw procRes.error;
 
@@ -794,7 +794,7 @@ async function load(){
 
       return {
 
-        id:pr.id, nm:pr.nombre, coord:pr.coord||'',
+        id:pr.id, nm:pr.nombre, coord:pr.coord||'', meta:(pr.meta_kpi!=null?Number(pr.meta_kpi):100),
 
         kpi:(r.kpi??null), efp:(r.efp??null), cult:(r.cult??null), candado:!!r.candado,
 
